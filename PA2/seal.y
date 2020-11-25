@@ -169,6 +169,7 @@
     %type <Constants> constants
     %type <actual> actual
     %type <actuals> actuals
+    %type <symbol> leftval
     
 
 	// Add more here
@@ -234,13 +235,11 @@
     }
     | variables ',' variable{
       $$=append_Variables($1,single_Variables($3));
-    };
+    }
+    | {$$=nil_Variables();};
 
     callDecl:FUNC OBJECTID '(' variables ')' TYPEID stmtBlock{
       $$=callDecl($2,$4,$6,$7);
-    }
-    |FUNC OBJECTID '(' ')' TYPEID stmtBlock{
-      $$=callDecl($2,nil_Variables(),$5,$6);
     };
 
     call:OBJECTID '(' actuals ')'{
@@ -300,53 +299,27 @@
     | '{' '}'{$$=stmtBlock(nil_VariableDecls(),nil_Stmts());}
     | '{' variableDecls '}'{$$=stmtBlock($2,nil_Stmts());};
 
-    stmtBlocks: stmtBlock{
-      $$=single_StmtBlocks($1);
-    }
-    | stmtBlocks stmtBlock{
-      $$=append_StmtBlocks($1,single_StmtBlocks($2));
-    };
-
-    constant:CONST_INT{$$=constant($1);}
-    | CONST_STRING{$$=constant($1);}
-    | CONST_FLOAT{$$=constant($1);}
-    | CONST_BOOL{$$=constant($1);};
-
-    constants:constant{
-      $$=single_Constants($1);
-    }
-    |constants constant{
-      $$=append_Constants($1,single_Constants($2));
-    };
-
-
     actual:expr{$$=actual($1);};
 
     actuals:actual{$$=single_Actuals($1);}
-    |actuals ',' actual{$$=append_Actuals($1,single_Actuals($3));}
-    |{$$=nil_Actuals();};
+    |actuals ',' actual{$$=append_Actuals($1,single_Actuals($3));};
+    | {$$=nil_Actuals();};
 
-    exprs:expr{
-      $$=single_Exprs($1);
-    }
-    |exprs ',' expr{
-      $$=append_Exprs($1,single_Exprs($3));
-    };
+    leftval:OBJECTID{$$=$1;};
 
-    expr: OBJECTID '=' expr{$$=assign($1,$3);}
-    |OBJECTID{$$=object($1);}
+    expr: leftval '=' expr{$$=assign($1,$3);}
+    |leftval{$$=object($1);}
     |CONST_INT{$$=const_int($1);}
     |CONST_FLOAT{$$=const_float($1);}
     |CONST_BOOL{$$=const_bool($1);}
     |CONST_STRING{$$=const_string($1);}
     |call{$$=Expr($1);}
     |'(' expr ')'{$$=Expr($2);}
-    |OBJECTID{$$=Expr($1);}
     |expr '+' expr {$$=add($1,$3);}
     |expr '-' expr {$$=minus($1,$3);}
     |expr '*' expr {$$=multi($1,$3);}
     |expr '/' expr {$$=divide($1,$3);}
-    |'-' expr {$$=neg($2);}
+    |'-' expr {$$=neg($2);} %prec UMINUS
     |expr '<' expr{$$=lt($1,$3);}
     |expr LE expr{$$=le($1,$3);}
     |expr EQUAL expr{$$=equ($1,$3);}
@@ -357,9 +330,9 @@
     |expr OR expr{$$=or_($1,$3);}
     |expr '^' expr{$$=xor_($1,$3);}
     |'!' expr{$$=not_($2);}
-    |'~' expr{$$=bitnot($2);}
-    |expr '&' expr{$$=bitand_($1,$3);}
-    |expr '|' expr{$$=bitor_($1,$3);}
+    |'~' CONST_INT{$$=bitnot(object($2));}
+    | CONST_INT '&' CONST_INT {$$=bitand_(object($1), object($3));}
+    | CONST_INT '|' CONST_INT {$$=bitor_(object($1), object($3));}
     |expr '%' expr {$$=mod($1,$3);};
 
     /* end of grammar */
